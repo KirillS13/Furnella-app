@@ -29,9 +29,20 @@ func main() {
 	db := common.GetFirestore()
 
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     []string{"http://localhost:3000", "https://furnella.app.onrender.com"},
-		AllowMethods:     []string{echo.GET, echo.POST, echo.PATCH, echo.PUT, echo.DELETE, echo.OPTIONS},
-		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
+		AllowOrigins: []string{
+			"http://localhost:3000",
+			"http://localhost:5173", // Если используете Vite / React
+			"https://furnella.app.onrender.com", // Домен вашего фронтенда
+		},
+		AllowMethods: []string{
+			echo.GET, echo.POST, echo.PATCH, echo.PUT, echo.DELETE, echo.OPTIONS,
+		},
+		AllowHeaders: []string{
+			echo.HeaderOrigin,
+			echo.HeaderContentType,
+			echo.HeaderAccept,
+			echo.HeaderAuthorization, // Важно для авторизации/токенов
+		},
 		AllowCredentials: true,
 	}))
 
