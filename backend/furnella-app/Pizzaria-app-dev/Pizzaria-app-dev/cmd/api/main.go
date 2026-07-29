@@ -31,8 +31,8 @@ func main() {
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{
 			"http://localhost:3000",
-			"http://localhost:5173", // Если используете Vite / React
-			"https://furnella.app.onrender.com", // Домен вашего фронтенда
+			"http://localhost:5173",
+			"https://furnella-app.vercel.app", // <- Вот правильный URL вашего фронтенда
 		},
 		AllowMethods: []string{
 			echo.GET, echo.POST, echo.PATCH, echo.PUT, echo.DELETE, echo.OPTIONS,
@@ -41,7 +41,7 @@ func main() {
 			echo.HeaderOrigin,
 			echo.HeaderContentType,
 			echo.HeaderAccept,
-			echo.HeaderAuthorization, // Важно для авторизации/токенов
+			echo.HeaderAuthorization,
 		},
 		AllowCredentials: true,
 	}))
