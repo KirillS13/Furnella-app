@@ -23,6 +23,7 @@ func (app Application) routes(handler handlers.Handler) {
 		notifications.POST("/broadcast", handler.BroadCast)
 		notifications.POST("/sms/send", handler.SendSMS)
 		notifications.POST("/sms/verify", handler.VerifyCode)
+		notifications.POST("/sms/verifyWithoutOrder", handler.VerifyCodeWithoutOrder)
 	}
 
 }

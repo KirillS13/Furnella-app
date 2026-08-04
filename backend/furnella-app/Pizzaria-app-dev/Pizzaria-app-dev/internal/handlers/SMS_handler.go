@@ -168,3 +168,49 @@ func (h Handler) VerifyCode(c echo.Context) error {
 
 	return c.JSON(http.StatusBadRequest, "Code is not correct")
 }
+func (h Handler) VerifyCodeWithoutOrder(c echo.Context) error {
+	ctx := c.Request().Context()
+	request := new(requests2.VerifyCodeWithoutOrderRequest)
+	if err := c.Bind(request); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	
+	phone := request.PhoneNumber
+
+	docRef := h.UserService.Fs.Collection("SmsCodes").Doc(phone)
+	doc, err := docRef.Get(ctx)
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return c.JSON(http.StatusNotFound, "SMS code not found or expired")
+		}
+		return c.JSON(http.StatusInternalServerError, err.Error())
+	}
+	
+	var storedCode model.SmsModel
+	err = doc.DataTo(&storedCode)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, fmt.Sprintf("DataTo error: %v", err))
+	}
+	
+	
+	// Проверка срока действия кода напрямую (БЕЗ time.Parse)
+	if time.Now().After(storedCode.ExpiredAt) {
+		_, _ = docRef.Delete(ctx)
+		return c.JSON(http.StatusBadRequest, "Code has expired")
+	}
+	
+
+	if storedCode.Code == request.Code {
+		// После успешного подтверждения кода удаляем использованный СМС-код из базы
+		_, _ = docRef.Delete(ctx)
+
+		responseUser := map[string]interface{}{
+			"phoneNumber":         phone,
+			"phoneNumberVerified": true,
+		}
+
+		return c.JSON(http.StatusOK, responseUser)
+	}
+	
+	return c.JSON(http.StatusBadRequest, "Code is not correct")
+}

@@ -5,3 +5,8 @@ type VerifyCodeRequest struct {
 	Code        string       `json:"code"`
 	Order       OrderRequest `json:"order"`
 }
+
+type VerifyCodeWithoutOrderRequest struct {
+	PhoneNumber string `json:"phoneNumber"`
+	Code        string `json:"code"`
+}
