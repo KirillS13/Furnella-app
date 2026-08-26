@@ -24,7 +24,7 @@ export function SiteHeader() {
           href="/"
           className="font-heading text-2xl font-extrabold tracking-tight text-accent transition-transform hover:scale-105"
         >
-          Furnella
+          Burnella
         </Link>
 
         <nav className="flex items-center gap-2 sm:gap-3">

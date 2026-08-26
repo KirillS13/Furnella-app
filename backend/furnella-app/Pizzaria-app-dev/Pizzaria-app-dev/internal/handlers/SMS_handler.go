@@ -32,10 +32,22 @@ func (h Handler) SendSMS(c echo.Context) error {
 	if validationErrors != nil {
 		return c.JSON(http.StatusBadRequest, validationErrors)
 	}
+
 	docRef := h.UserService.Fs.Collection("SmsCodes").Doc(request.PhoneNumber)
 	doc, err := docRef.Get(ctx)
+	
+	// Проверка активного SMS-кода с проверкой TTL
 	if err == nil && doc.Exists() {
-		return c.JSON(http.StatusAlreadyReported, "Sms has already been sent")
+		var storedSms model.SmsModel
+		if err := doc.DataTo(&storedSms); err == nil {
+			if time.Now().After(storedSms.ExpiredAt) {
+				// Срок действия кода истек — удаляем старую запись
+				_, _ = docRef.Delete(ctx)
+			} else {
+				// Код еще действителен — возвращаем статус, что SMS уже отправлено
+				return c.JSON(http.StatusAlreadyReported, "Sms has already been sent")
+			}
+		}
 	}
 
 	code := random.String(5, random.Numeric)
@@ -69,15 +81,24 @@ func (h Handler) SendSMS(c echo.Context) error {
 	return common.SendSuccessResponse(c, "Message sent successfully", resp)
 }
 
-var ErrSmsAlreadySent = errors.New("sms already sent")
-
 func (h Handler) SendMessage(ctx context.Context, phoneNumber string) error {
-
 	docRef := h.UserService.Fs.Collection("SmsCodes").Doc(phoneNumber)
 	doc, err := docRef.Get(ctx)
+
+	// Проверка активного SMS-кода с проверкой TTL
 	if err == nil && doc.Exists() {
-		return ErrSmsAlreadySent
+		var storedSms model.SmsModel
+		if err := doc.DataTo(&storedSms); err == nil {
+			if time.Now().After(storedSms.ExpiredAt) {
+				// Срок действия истек — подчищаем
+				_, _ = docRef.Delete(ctx)
+			} else {
+				// Код ещё не истек
+				return ErrSmsAlreadySent
+			}
+		}
 	}
+
 	code := random.String(5, random.Numeric)
 
 	msg := models.SMSMsg{

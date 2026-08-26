@@ -29,7 +29,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* 🎯 Задаем тайтл страницы прямо в клиентском компоненте: */}
-      <title>Панель заказов — Furnella</title>
+      <title>Панель заказов — Burnella</title>
 
       <SiteHeader />
       <main className="container mx-auto px-4 py-8">

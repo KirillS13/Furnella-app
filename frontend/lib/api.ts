@@ -300,10 +300,23 @@ export const api = {
       await delay(400)
       return
     }
-    await request('/notifications/sms/send', {
-      method: 'POST',
-      body: JSON.stringify({ phoneNumber }),
-    })
+
+    try {
+      await request('/notifications/sms/send', {
+        method: 'POST',
+        body: JSON.stringify({ phoneNumber }),
+      })
+    } catch (error) {
+      // 208 StatusAlreadyReported или текст "Sms has already been sent"
+      if (
+        error instanceof ApiError &&
+        (error.status === 208 || error.message.includes('already been sent'))
+      ) {
+        // Успешно поглощаем ошибку: код уже был отправлен и ещё активен
+        return
+      }
+      throw error
+    }
   },
 
   async verifyPhone(code: string, phoneNumber: string, orderPayload: OrderPayload): Promise<User> {

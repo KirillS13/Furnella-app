@@ -14,7 +14,7 @@ export default function HomePage() {
           </span>
           <h1 className="mt-5 font-heading text-4xl font-extrabold tracking-tight text-foreground text-balance sm:text-5xl lg:text-6xl">
             Настоящая итальянская пицца в{' '}
-            <span className="text-accent">Furnella</span>
+            <span className="text-accent">Burnella</span>
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
             Готовим на дровяной печи из отборных ингредиентов. Выбирайте любимую

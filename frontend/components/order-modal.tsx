@@ -36,12 +36,12 @@ export function OrderModal({ open, onClose }: OrderModalProps) {
   }
 
   function applyFieldErrors(err: unknown) {
-    // Safe check: backend returns validation errors as an array of { field, message }.
     if (err instanceof ApiError && Array.isArray(err.fieldErrors) && err.fieldErrors.length) {
       const next: Errors = {}
       for (const fe of err.fieldErrors) {
-        if (fe.field === 'name' || fe.field === 'phoneNumber' || fe.field === 'address') {
-          next[fe.field] = fe.message
+        const field = fe.field as keyof Errors
+        if (field === 'name' || field === 'phoneNumber' || field === 'address') {
+          next[field] = fe.message
         }
       }
       setErrors(next)
@@ -68,12 +68,13 @@ async function submitOrder() {
         phoneNumber,
         address,
         userId: user?.id || '',
-        items: items.map((i) => ({
+       items: items.map((i) => ({
           id: Number(i.id),
           title: i.title,
           price: i.price,
           quantity: i.quantity,
           description: i.description || '',
+          image: i.image || '', // <-- Добавлена эта строка
         })),
         total: totalPrice,
       }) as any;
