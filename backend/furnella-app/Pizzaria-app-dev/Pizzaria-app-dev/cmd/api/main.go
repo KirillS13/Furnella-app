@@ -22,8 +22,8 @@ type Application struct {
 
 func main() {
 	e := echo.New()
-	
-	// Мягкая загрузка .env (для локалки). На Render файл отсутствует — и это нормально!
+
+	// Мягкая загрузка .env (для локальной разработки). На Render файл отсутствует — и это нормально!
 	_ = godotenv.Load()
 
 	db := common.GetFirestore()
@@ -32,7 +32,7 @@ func main() {
 		AllowOrigins: []string{
 			"http://localhost:3000",
 			"http://localhost:5173",
-			"https://furnella-app.vercel.app", // <- Вот правильный URL вашего фронтенда
+			"https://furnella-app.vercel.app",
 		},
 		AllowMethods: []string{
 			echo.GET, echo.POST, echo.PATCH, echo.PUT, echo.DELETE, echo.OPTIONS,
@@ -46,8 +46,17 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	url := "https://38xjxn.api.infobip.com"
-	apikey := os.Getenv("API_KEY")
+	// Считываем хост Infobip
+	baseUrl := os.Getenv("INFOBIP_BASE_URL")
+	if baseUrl == "" {
+		baseUrl = "https://ee9m8q.api.infobip.com"
+	}
+
+	// Считываем API-ключ Infobip (с поддержкой старого имени API_KEY)
+	apikey := os.Getenv("INFOBIP_API_KEY")
+	if apikey == "" {
+		apikey = os.Getenv("API_KEY")
+	}
 
 	firebaseApp := common.GetApp()
 	authClient, err := firebaseApp.Auth(context.Background())
@@ -58,7 +67,9 @@ func main() {
 	if err != nil {
 		e.Logger.Fatal(err)
 	}
-	infobipClient, err := infobip.NewClient(url, apikey)
+
+	// Создаем клиент Infobip с правильным базовым URL и API-ключом
+	infobipClient, err := infobip.NewClient(baseUrl, apikey)
 	if err != nil {
 		e.Logger.Fatal(err)
 	}
