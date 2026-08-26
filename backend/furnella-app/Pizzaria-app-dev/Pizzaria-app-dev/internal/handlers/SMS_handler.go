@@ -18,6 +18,9 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Объявляем кастомную ошибку (задействует импорт "errors" и устраняет undefined)
+var ErrSmsAlreadySent = errors.New("Sms has already been sent")
+
 var allCodes = map[string]string{}
 
 func (h Handler) SendSMS(c echo.Context) error {
@@ -189,6 +192,7 @@ func (h Handler) VerifyCode(c echo.Context) error {
 
 	return c.JSON(http.StatusBadRequest, "Code is not correct")
 }
+
 func (h Handler) VerifyCodeWithoutOrder(c echo.Context) error {
 	ctx := c.Request().Context()
 	request := new(requests2.VerifyCodeWithoutOrderRequest)
@@ -213,13 +217,11 @@ func (h Handler) VerifyCodeWithoutOrder(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, fmt.Sprintf("DataTo error: %v", err))
 	}
 	
-	
 	// Проверка срока действия кода напрямую (БЕЗ time.Parse)
 	if time.Now().After(storedCode.ExpiredAt) {
 		_, _ = docRef.Delete(ctx)
 		return c.JSON(http.StatusBadRequest, "Code has expired")
 	}
-	
 
 	if storedCode.Code == request.Code {
 		// После успешного подтверждения кода удаляем использованный СМС-код из базы
