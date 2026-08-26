@@ -18,8 +18,8 @@ const poppins = Poppins({
 })
 
 export const metadata: Metadata = {
-  title: 'FURNELLA — Пиццерия',
-  description: 'Свежая, ароматная пицца с доставкой. Закажите любимую пиццу FURNELLA онлайн.',
+  title: 'BURNELLA — Пиццерия',
+  description: 'Свежая, ароматная пицца с доставкой. Закажите любимую пиццу BURNELLA онлайн.',
   generator: 'v0.app',
 }
 
