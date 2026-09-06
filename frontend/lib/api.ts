@@ -37,7 +37,7 @@ async function getRealFcmToken(): Promise<string> {
     return 'fcm_error_token'
   }
 }
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://furnella-app.onrender.com/api').replace(/\/$/, '');
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://furnella-app.onrender.com').replace(/\/$/, '');
 export const USE_MOCK = API_URL === ''
 
 export const ADMIN_EMAIL = 'furnella@gmail.com'
@@ -61,7 +61,7 @@ export class ApiError extends Error {
     if (typeof statusOrFieldErrors === 'number') {
       this.status = statusOrFieldErrors
       this.fieldErrors = fieldErrors
-    } 
+    }
     // Если второй аргумент передали как массив (например: new ApiError("Ошибка", errors))
     else {
       this.status = 400 // Дефолтный статус
@@ -95,8 +95,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const fieldErrors = Array.isArray(data)
       ? data
       : Array.isArray(data?.errors)
-      ? data.errors
-      : []
+        ? data.errors
+        : []
 
     // 3. Пробрасываем ApiError со статусом
     throw new ApiError(errorMessage, res.status, fieldErrors)
@@ -161,6 +161,7 @@ export interface OrderPayload {
   name: string
   phoneNumber: string // <-- Здесь тоже camelCase
   address: string
+  paymentMethod: 'cash' | 'card' // <-- Добавляем поле paymentMethod
   items: { id: number; title: string; price: number; quantity: number, description: string, image: string }[]
   total: number
   userId?: string;
@@ -327,7 +328,7 @@ export const api = {
       }
       const user = readLocalUser()
       if (!user) // ✅ Поправь строку 303:
-      throw new ApiError("Требуется вход", 401)
+        throw new ApiError("Требуется вход", 401)
       const updated = { ...user, phoneNumberVerified: true }
       writeLocalUser(updated)
       return updated
@@ -339,9 +340,9 @@ export const api = {
     // 2. Приводим фронтенд-структуру OrderPayload к json-тегам бэкенда OrderModel
     const backendOrder = {
       name: orderPayload.name,
-      // Вспоминаем Go-структуру бэкенда: там `json:"phoneNumber"` для OrderRequest
       phoneNumber: orderPayload.phoneNumber.trim(),
       address: orderPayload.address.trim(),
+      payment_method: orderPayload.paymentMethod, // <-- ДОБАВИТЬ ЭТУ СТРОКУ
       price: Number(orderPayload.total),
       dishes: orderPayload.items.map(item => ({
         id: Number(item.id),
@@ -351,7 +352,6 @@ export const api = {
         image: String(item.image || ""),
         description: String(item.description || "")
       })),
-      // Передаем реальный ID авторизованного пользователя
       user_id: currentUser?.id || (orderPayload as any).userId || "xOajXShTWdTJhJ9KTfxkQQFJCbm2"
     }
 
@@ -402,6 +402,7 @@ export const api = {
         customerName: payload.name.trim(),
         phoneNumber: payload.phoneNumber,
         address: payload.address.trim(),
+        paymentMethod: payload.paymentMethod, // <-- ДОБАВИТЬ ЭТУ СТРОКУ
         items: payload.items,
         total: payload.total,
         status: 'PENDING',
@@ -427,7 +428,7 @@ export const api = {
 
       // В Go структуре: `json:"price"` (тип int64)
       price: Number(payload.total),
-
+      payment_method: payload.paymentMethod,
       // В Go структуре: `json:"user_id"` (обязательное поле!)
       user_id: (payload as any).userId || (payload as any).userUid || "xOajXShTWdTJhJ9KTfxkQQFJCbm2",
 

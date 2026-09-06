@@ -26,6 +26,7 @@ export function OrderModal({ open, onClose }: OrderModalProps) {
   const [name, setName] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [address, setAddress] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('cash') // <-- СОСТОЯНИЕ ОПЛАТЫ
   const [errors, setErrors] = useState<Errors>({})
   const [loading, setLoading] = useState(false)
   const [smsOpen, setSmsOpen] = useState(false)
@@ -50,48 +51,47 @@ export function OrderModal({ open, onClose }: OrderModalProps) {
     return false
   }
 
-async function submitOrder() {
+  async function submitOrder() {
     setLoading(true)
     setErrors({})
 
-    console.log("ДАННЫЕ ПЕРЕД ОТПРАВКОЙ:", { 
-      name, 
-      phoneNumber, 
-      address, 
-      items 
+    console.log("ДАННЫЕ ПЕРЕД ОТПРАВКОЙ:", {
+      name,
+      phoneNumber,
+      address,
+      paymentMethod, // <-- Лог оплаты
+      items
     });
-  
+
     try {
       // 1. Делаем запрос на бэкенд
       const response = await api.createOrder({
         name,
         phoneNumber,
         address,
+        paymentMethod, // <-- Передаем на бэкенд ("cash" или "card")
         userId: user?.id || '',
-       items: items.map((i) => ({
+        items: items.map((i) => ({
           id: Number(i.id),
           title: i.title,
           price: i.price,
           quantity: i.quantity,
           description: i.description || '',
-          image: i.image || '', // <-- Добавлена эта строка
+          image: i.image || '',
         })),
         total: totalPrice,
       }) as any;
 
-      // 2. ПРОВЕРКА ОТВЕТА БЭКЕНДА:
-      // Если бэк вернул статус отправки СМС (из-за нового номера или не подтвержденного)
+      // 2. ПРОВЕРКА ОТВЕТА БЭКЕНДА
       if (response?.message === "Verified message was sent") {
-        setSmsOpen(true); // Открываем СМС модалку
-        return; // Заказ еще не создан, ждем код!
+        setSmsOpen(true);
+        return;
       }
 
-      // Если бэк сразу создал заказ (номер совпал и подтвержден)
       showToast('🎉 Заказ успешно оформлен!', 'success')
       clear()
       resetAndClose()
     } catch (err) {
-      // Ловим ошибку 208 "Sms has already been sent", если СМС уже улетело
       if (err instanceof Error && err.message.includes("already been sent")) {
         setSmsOpen(true);
       } else if (!applyFieldErrors(err)) {
@@ -111,7 +111,6 @@ async function submitOrder() {
       return
     }
 
-    // Локальная валидация полей
     const next: Errors = {}
     if (name.trim().length < 2) next.name = 'Введите имя'
     if (!/^\+?[0-9\s]{8,}$/.test(phoneNumber)) next.phoneNumber = 'Неверный формат телефона'
@@ -121,18 +120,16 @@ async function submitOrder() {
       return
     }
 
-    // 🔥 УДАЛИЛИ старую проверку IF. Теперь просто доверяем бэкенду:
     await submitOrder()
   }
 
   async function handleVerified() {
-    setSmsOpen(false)     // Закрываем СМС-модалку
-    await refresh()       // Обновляем данные пользователя (чтобы подтянулся флаг верификации)
-    
-    // Вместо повторной отправки submitOrder() просто завершаем процесс оформления:
+    setSmsOpen(false)
+    await refresh()
+
     showToast('🎉 Заказ успешно оформлен!', 'success')
-    clear()               // Чистим корзину
-    resetAndClose()       // Закрываем основную модалку заказа
+    clear()
+    resetAndClose()
   }
 
   return (
@@ -171,6 +168,38 @@ async function submitOrder() {
             />
           </div>
 
+          {/* ВЫБОР СПОСОБА ОПЛАТЫ */}
+          <div className="mt-5 text-left">
+            <label className="block text-xs font-semibold text-muted-foreground mb-2">
+              Способ оплаты
+            </label>
+            <div className="flex items-center gap-6">
+              <label className="flex items-center gap-2 text-sm font-medium text-card-foreground cursor-pointer select-none">
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="cash"
+                  checked={paymentMethod === 'cash'}
+                  onChange={() => setPaymentMethod('cash')}
+                  className="w-4 h-4 accent-primary cursor-pointer"
+                />
+                Наличными
+              </label>
+
+              <label className="flex items-center gap-2 text-sm font-medium text-card-foreground cursor-pointer select-none">
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="card"
+                  checked={paymentMethod === 'card'}
+                  onChange={() => setPaymentMethod('card')}
+                  className="w-4 h-4 accent-primary cursor-pointer"
+                />
+                Картой курьеру
+              </label>
+            </div>
+          </div>
+
           <div className="mt-6 flex items-center justify-center gap-2 text-center">
             <span className="text-sm font-semibold text-muted-foreground">Итоговая цена:</span>
             <span className="text-xl font-extrabold text-accent">{totalPrice} MDL</span>
@@ -186,26 +215,23 @@ async function submitOrder() {
         </form>
       </Modal>
 
-          <SmsVerifyModal
-          open={smsOpen}
-          phoneNumber={phoneNumber}
-          onClose={() => setSmsOpen(false)}
-          onVerified={handleVerified}
-          username={name} 
-          address={address}
-          cart={{
-            // Преобразуем id каждого элемента в число, чтобы соответствовать новому интерфейсу
-            items: items.map(item => ({
-              id: Number(item.id),
-              title: item.title,
-              price: item.price,
-              quantity: item.quantity
-            })),
-            total: totalPrice
+      <SmsVerifyModal
+        open={smsOpen}
+        phoneNumber={phoneNumber}
+        onClose={() => setSmsOpen(false)}
+        onVerified={handleVerified}
+        username={name}
+        address={address}
+        cart={{
+          items: items.map(item => ({
+            id: Number(item.id),
+            title: item.title,
+            price: item.price,
+            quantity: item.quantity
+          })),
+          total: totalPrice
         }}
       />
     </>
   )
 }
-
-

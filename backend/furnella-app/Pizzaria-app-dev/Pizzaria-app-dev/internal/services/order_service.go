@@ -26,6 +26,7 @@ func (orderService *OrderService) CreateOrder(ctx context.Context, request *requ
 		Dishes:      request.Dishes,
 		PhoneNumber: request.PhoneNumber,
 		Name:        request.Name,
+		PaymentMethod: request.PaymentMethod,
 		UserUid:     request.UserID,
 		OrderId:     orderDocRef.ID,
 		Status:      "PENDING",

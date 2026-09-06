@@ -9,6 +9,7 @@ type OrderRequest struct {
 	Dishes      []model.PizzaModel `json:"dishes" validate:"required,dive"`
 	Name        string             `json:"name" validate:"required"`
 	PhoneNumber string             `json:"phoneNumber" validate:"required"`
+	PaymentMethod string            `json:"payment_method" validate:"required"`
 	Price       int64              `json:"price" validate:"required"`
 	UserID      string             `json:"user_id" validate:"required"`
 }
