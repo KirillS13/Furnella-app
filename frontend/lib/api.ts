@@ -249,7 +249,7 @@ export const api = {
   },
 
   async register(name: string, email: string, password: string): Promise<User> {
-    const fcmToken = "undefined"
+    const fcmToken = await getRealFcmToken()
 
     const response = await request<any>('/auth/registration', {
       method: 'POST',

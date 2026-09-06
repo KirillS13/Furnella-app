@@ -75,7 +75,7 @@ func main() {
 	}
 
 	userService := services2.NewUserService(db, authClient)
-	orderService := services2.NewOrderService(db)
+	orderService := services2.NewOrderService(db, messagingClient)
 
 	h := handlers.Handler{
 		Logger:        e.Logger,

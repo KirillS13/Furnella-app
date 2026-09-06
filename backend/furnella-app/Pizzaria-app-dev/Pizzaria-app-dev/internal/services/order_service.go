@@ -11,10 +11,11 @@ import (
 
 type OrderService struct {
 	Fs *firestore.Client
+	FcmClient *messaging.Client
 }
 
-func NewOrderService(db *firestore.Client) *OrderService {
-	return &OrderService{db}
+func NewOrderService(db *firestore.Client, fcmClient *messaging.Client) *OrderService {
+	return &OrderService{db, fcmClient}
 }
 
 func (orderService *OrderService) CreateOrder(ctx context.Context, request *requests.OrderRequest) (*model.OrderModel, error) {
@@ -110,6 +111,55 @@ func (orderService *OrderService) UpdateOrderStatus(ctx context.Context, orderId
 	if err != nil {
 		return nil, err
 	}
+	user, err := orderService.Fs.Collection("Users").Doc(updatedOrder.UserUid).Get(ctx)
+	if err == nil {
+		var userData model.UserModel
+		if err = user.DataTo(&userData); err == nil && userData.FcmToken != "" {
+			// Не забудь добавить в импорты:
+// "firebase.google.com/go/v4/messaging"
+
+		go func(fcmToken string, status string, orderId string) {
+			// Формируем понятный текст для пользователя в зависимости от статуса
+			var statusText string
+			switch status {
+			case "ACCEPTED":
+				statusText = "Ваш заказ принят и уже готовится! 👨‍🍳"
+			case "COOKING":
+				statusText = "Пицца уже в печи! 🍕"
+			case "ON_THE_WAY":
+				statusText = "Курьер везёт ваш заказ! 🚗"
+			case "DELIVERED":
+				statusText = "Заказ доставлен. Приятного аппетита! 🎉"
+			case "REJECTED":
+				statusText = "К сожалению, ваш заказ был отклонён."
+			default:
+				statusText = "Статус вашего заказа изменился на: " + status
+			}
+
+			// Собираем сообщение FCM
+			message := &messaging.Message{
+				Token: fcmToken,
+				Notification: &messaging.Notification{
+					Title: "Furnella 🍕",
+					Body:  statusText,
+				},
+				Data: map[string]string{
+					"orderId": orderId,
+					"status":  status,
+				},
+			}
+
+			// Отправляем через FcmClient
+			if orderService.FcmClient != nil {
+				_, err := orderService.FcmClient.Send(context.Background(), message)
+				if err != nil {
+					// Логируем ошибку, если токен просрочен или невалиден
+					println("Ошибка отправки Push:", err.Error())
+				}
+			}
+		}(userData.FcmToken, updatedOrder.Status, updatedOrder.OrderId	)
+		}
+	}	
 
 	return &updatedOrder, nil
 }
