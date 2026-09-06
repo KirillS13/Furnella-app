@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Check, Clock, MapPin, Phone, X } from 'lucide-react'
+import { Check, Clock, CreditCard, MapPin, Phone, X } from 'lucide-react'
 import { useState } from 'react'
 import useSWR from 'swr'
 import { Modal } from './modal'
@@ -25,20 +25,6 @@ export function AdminOrders() {
   const [selected, setSelected] = useState<Order | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
 
-  function formatOrderDate(dateString?: string): string {
-    if (!dateString) return 'Только что'
-
-    const date = new Date(dateString)
-    if (isNaN(date.getTime())) return 'Только что'
-
-    const day = String(date.getDate()).padStart(2, '0')
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-
-    return `${day}.${month}, ${hours}:${minutes}`
-  }
-
   async function changeStatus(order: Order, status: OrderStatus) {
     setBusy(order.id)
     try {
@@ -56,16 +42,14 @@ export function AdminOrders() {
     }
   }
 
-  // 🎯 Приоритеты статусов: чем меньше число, тем выше в списке
   const STATUS_ORDER: Record<string, number> = {
-    PENDING: 1,  // 1 место: Ждут подтверждения (В ожидании)
-    ACCEPTED: 2, // 2 место: Принятые
-    REJECTED: 3, // 3 место: Отклоненные
+    PENDING: 1,
+    ACCEPTED: 2,
+    REJECTED: 3,
   }
 
   const sortedOrders = orders
     ? [...orders].sort((a, b) => {
-        // 1. Сравниваем приоритет статусов
         const priorityA = STATUS_ORDER[a.status] ?? 99
         const priorityB = STATUS_ORDER[b.status] ?? 99
 
@@ -73,7 +57,6 @@ export function AdminOrders() {
           return priorityA - priorityB
         }
 
-        // 2. Если статусы одинаковые — сортируем по дате (свежие выше)
         const timeA = new Date(a.createdAt || 0).getTime()
         const timeB = new Date(b.createdAt || 0).getTime()
 
@@ -102,7 +85,6 @@ export function AdminOrders() {
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {/* Рендерим sortedOrders вместо orders */}
         {sortedOrders.map((order) => (
           <motion.article
             key={order.id}
@@ -129,6 +111,10 @@ export function AdminOrders() {
                 </p>
                 <p className="flex items-center gap-1.5">
                   <MapPin className="size-3.5 shrink-0" /> {order.address}
+                </p>
+                <p className="flex items-center gap-1.5 font-medium text-foreground">
+                  <CreditCard className="size-3.5 shrink-0 text-muted-foreground" />
+                  Оплата: {order.paymentMethod === 'card' ? 'Картой' : 'Наличными'}
                 </p>
                 <p className="flex items-center gap-1.5">
                   <Clock className="size-3.5" /> {formatTime(order.createdAt)}
@@ -191,6 +177,13 @@ export function AdminOrders() {
               </p>
               <p className="flex items-center gap-1.5">
                 <MapPin className="size-4 shrink-0" /> {selected.address}
+              </p>
+              <p className="flex items-center gap-1.5 font-medium text-foreground pt-1">
+                <CreditCard className="size-4 shrink-0 text-muted-foreground" />
+                Способ оплаты: 
+                <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-semibold">
+                  {selected.paymentMethod === 'card' ? 'Картой курьеру' : 'Наличными'}
+                </span>
               </p>
             </div>
 

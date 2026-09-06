@@ -35,9 +35,10 @@ export interface Order {
   customerName: string
   phoneNumber: string
   address: string
-  items: OrderItem[]
+  paymentMethod?: 'cash' | 'card' | string // <-- ДОБАВЬ ЭТУ СТРОКУ
   total: number
   status: OrderStatus
+  items: OrderItem[]
   createdAt: string
 }
 

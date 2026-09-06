@@ -473,11 +473,12 @@ export const api = {
     return rawOrders.map((o: any) => ({
       id: o.order_id || o.id,
       customerName: o.name || 'Клиент',
-      phoneNumber: o.phone_number || '',
+      phoneNumber: o.phoneNumber || o.phone_number || '', // проверяем и camelCase, и snake_case
       address: o.address || '',
+      paymentMethod: o.paymentMethod || o.payment_method || 'cash', // <-- ДОБАВИТЬ ЭТУ СТРОКУ
       total: Number(o.price) || 0,
       status: o.status || 'PENDING',
-      createdAt: o.createdAt || new Date().toISOString(), // Или любое другое дефолтное время
+      createdAt: o.createdAt || new Date().toISOString(),
       items: (o.dishes || []).map((dish: any) => ({
         id: Number(dish.id),
         title: dish.title || 'Без названия',
