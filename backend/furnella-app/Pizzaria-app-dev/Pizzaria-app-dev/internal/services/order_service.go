@@ -111,25 +111,45 @@ func (orderService *OrderService) UpdateOrderStatus(ctx context.Context, orderId
 	if err != nil {
 		return nil, err
 	}
-	user, err := orderService.Fs.Collection("Users").Doc(updatedOrder.UserUid).Get(ctx)
-	if err == nil {
-		var userData model.UserModel
-		if err = user.DataTo(&userData); err == nil && userData.FcmToken != "" {
-			// Не забудь добавить в импорты:
-// "firebase.google.com/go/v4/messaging"
 
-		go func(fcmToken string, status string, orderId string) {
+	println("[FCM] Поиск юзера по UserUid:", updatedOrder.UserUid)
+
+	if updatedOrder.UserUid == "" {
+		println("[FCM ERROR] updatedOrder.UserUid пустой! Проверьте описание OrderModel")
+		return &updatedOrder, nil
+	}
+
+	userDoc, err := orderService.Fs.Collection("Users").Doc(updatedOrder.UserUid).Get(ctx)
+	if err != nil {
+		println("[FCM ERROR] Ошибка получения юзера из Firestore:", err.Error())
+		return &updatedOrder, nil
+	}
+
+	var userData model.UserModel
+	if err = userDoc.DataTo(&userData); err != nil {
+		println("[FCM ERROR] Ошибка парсинга UserModel:", err.Error())
+		return &updatedOrder, nil
+	}
+
+	if userData.FcmToken == "" {
+		println("[FCM INFO] FcmToken у пользователя пустой")
+		return &updatedOrder, nil
+	}
+
+	println("[FCM] Найден токен:", userData.FcmToken)
+
+	targetToken := userData.FcmToken
+	targetStatus := status
+	targetOrderID := orderId
+
+	go func(fcmToken string, status string, orderId string) {
 			// Формируем понятный текст для пользователя в зависимости от статуса
 			var statusText string
 			switch status {
 			case "ACCEPTED":
 				statusText = "Ваш заказ принят и уже готовится! 👨‍🍳"
-			case "COOKING":
+			case "PENDING":
 				statusText = "Пицца уже в печи! 🍕"
-			case "ON_THE_WAY":
-				statusText = "Курьер везёт ваш заказ! 🚗"
-			case "DELIVERED":
-				statusText = "Заказ доставлен. Приятного аппетита! 🎉"
 			case "REJECTED":
 				statusText = "К сожалению, ваш заказ был отклонён."
 			default:
@@ -157,9 +177,9 @@ func (orderService *OrderService) UpdateOrderStatus(ctx context.Context, orderId
 					println("Ошибка отправки Push:", err.Error())
 				}
 			}
-		}(userData.FcmToken, updatedOrder.Status, updatedOrder.OrderId	)
-		}
-	}	
+		}(targetToken, targetStatus, targetOrderID)
+		
+		
 
 	return &updatedOrder, nil
 }
