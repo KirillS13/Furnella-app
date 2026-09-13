@@ -2,17 +2,21 @@ package services
 
 import (
 	"context"
-	"myapp/internal/model"
-	"myapp/internal/requests"
+	"fmt"
+	"log"
 	"time"
-	"firebase.google.com/go/v4/messaging"
+
 	"cloud.google.com/go/firestore"
+	"firebase.google.com/go/v4/messaging"
+	"github.com/infobip-community/infobip-api-go-sdk/v3/pkg/infobip"
 	"github.com/infobip-community/infobip-api-go-sdk/v3/pkg/infobip/models"
+
+	"myapp/internal/model"
 	"myapp/internal/requests"
 )
 
 type OrderService struct {
-	Fs *firestore.Client
+	Fs        *firestore.Client
 	FcmClient *messaging.Client
 }
 
@@ -24,16 +28,16 @@ func (orderService *OrderService) CreateOrder(ctx context.Context, request *requ
 	orderDocRef := orderService.Fs.Collection("Orders").NewDoc()
 	userDocRef := orderService.Fs.Collection("Users").Doc(request.UserID)
 	order := model.OrderModel{
-		Address:     request.Address,
-		Price:       request.Price,
-		Dishes:      request.Dishes,
-		PhoneNumber: request.PhoneNumber,
-		Name:        request.Name,
+		Address:       request.Address,
+		Price:         request.Price,
+		Dishes:        request.Dishes,
+		PhoneNumber:   request.PhoneNumber,
+		Name:          request.Name,
 		PaymentMethod: request.PaymentMethod,
-		UserUid:     request.UserID,
-		OrderId:     orderDocRef.ID,
-		Status:      "PENDING",
-		CreatedAt:   time.Now(),
+		UserUid:       request.UserID,
+		OrderId:       orderDocRef.ID,
+		Status:        "PENDING",
+		CreatedAt:     time.Now(),
 	}
 
 	err := orderService.Fs.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
@@ -104,50 +108,50 @@ func (orderService *OrderService) UpdateOrderStatus(ctx context.Context, orderId
 		return nil, err
 	}
 
-	doc, err := orderService.Fs.Collection("Orders").Doc(orderId).Get(ctx)
+	doc, err := docRef.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
+
 	var updatedOrder model.OrderModel
 	err = doc.DataTo(&updatedOrder)
 	if err != nil {
 		return nil, err
 	}
-	targetToken := userData.FcmToken
-	targetStatus := status
-	targetOrderID := orderId
 
-	go func(fcmToken string, status string, orderId string) {
-			// Формируем понятный текст для пользователя в зависимости от статуса
-			var statusText string
-			switch status {
-			case "ACCEPTED":
-				statusText = "Ваш заказ принят и уже готовится! 👨‍🍳"
-			case "PENDING":
-				statusText = "Пицца уже в печи! 🍕"
-			case "REJECTED":
-				statusText = "К сожалению, ваш заказ был отклонён."
-			default:
-				statusText = "Статус вашего заказа изменился на: " + status
-			}
-			msg := models.SMSMsg{
-				Destinations: []models.SMSDestination{
-					{To: request.PhoneNumber},
-				},
-				From: "447491163443",
-				Text: statusText,
-			}
-			req := models.SendSMSRequest{
-				Messages: []models.SMSMsg{msg},
-			}
-			_, _, err = infobipClient.SMS.Send(ctx, req)	
-			if err != nil {
-				fmt.Errorf("Failed to send SMS notification: %v", err)
-			}
+	// Отправка SMS в фоновом режиме (горутина)
+	go func(phone string, currentStatus string) {
+		var statusText string
+		switch currentStatus {
+		case "ACCEPTED":
+			statusText = "Ваш заказ принят и уже готовится! 👨‍🍳"
+		case "PENDING":
+			statusText = "Пицца уже в печи! 🍕"
+		case "REJECTED":
+			statusText = "К сожалению, ваш заказ был отклонён."
+		default:
+			statusText = "Статус вашего заказа изменился на: " + currentStatus
+		}
 
-		}(targetToken, targetStatus, targetOrderID)
-		
-		
+		msg := models.SMSMsg{
+			Destinations: []models.SMSDestination{
+				{To: phone},
+			},
+			From: "447491163443",
+			Text: statusText,
+		}
+
+		req := models.SendSMSRequest{
+			Messages: []models.SMSMsg{msg},
+		}
+
+		_, _, err := infobipClient.SMS.Send(context.Background(), req)
+		if err != nil {
+			log.Printf("[INFOBIP ERROR] Ошибка отправки SMS: %v", err)
+		} else {
+			fmt.Println("[INFOBIP SUCCESS] SMS успешно отправлена")
+		}
+	}(updatedOrder.PhoneNumber, status)
 
 	return &updatedOrder, nil
 }
