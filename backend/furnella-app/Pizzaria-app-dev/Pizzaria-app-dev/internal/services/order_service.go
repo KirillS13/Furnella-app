@@ -111,33 +111,6 @@ func (orderService *OrderService) UpdateOrderStatus(ctx context.Context, orderId
 	if err != nil {
 		return nil, err
 	}
-
-	println("[FCM] Поиск юзера по UserUid:", updatedOrder.UserUid)
-
-	if updatedOrder.UserUid == "" {
-		println("[FCM ERROR] updatedOrder.UserUid пустой! Проверьте описание OrderModel")
-		return &updatedOrder, nil
-	}
-
-	userDoc, err := orderService.Fs.Collection("Users").Doc(updatedOrder.UserUid).Get(ctx)
-	if err != nil {
-		println("[FCM ERROR] Ошибка получения юзера из Firestore:", err.Error())
-		return &updatedOrder, nil
-	}
-
-	var userData model.UserModel
-	if err = userDoc.DataTo(&userData); err != nil {
-		println("[FCM ERROR] Ошибка парсинга UserModel:", err.Error())
-		return &updatedOrder, nil
-	}
-
-	if userData.FcmToken == "" {
-		println("[FCM INFO] FcmToken у пользователя пустой")
-		return &updatedOrder, nil
-	}
-
-	println("[FCM] Найден токен:", userData.FcmToken)
-
 	targetToken := userData.FcmToken
 	targetStatus := status
 	targetOrderID := orderId
@@ -155,28 +128,21 @@ func (orderService *OrderService) UpdateOrderStatus(ctx context.Context, orderId
 			default:
 				statusText = "Статус вашего заказа изменился на: " + status
 			}
-
-			// Собираем сообщение FCM
-			message := &messaging.Message{
-				Token: fcmToken,
-				Notification: &messaging.Notification{
-					Title: "Furnella 🍕",
-					Body:  statusText,
+			msg := models.SMSMsg{
+				Destinations: []models.SMSDestination{
+					{To: request.PhoneNumber},
 				},
-				Data: map[string]string{
-					"orderId": orderId,
-					"status":  status,
-				},
+				From: "447491163443",
+				Text: statusText,
+			}
+			req := models.SendSMSRequest{
+				Messages: []models.SMSMsg{msg},
+			}
+			_, _, err = h.InfobipClient.SMS.Send(ctx, req)	
+			if err != nil {
+				c.Logger().Error("Failed to send SMS notification: ", err)
 			}
 
-			// Отправляем через FcmClient
-			if orderService.FcmClient != nil {
-				_, err := orderService.FcmClient.Send(context.Background(), message)
-				if err != nil {
-					// Логируем ошибку, если токен просрочен или невалиден
-					println("Ошибка отправки Push:", err.Error())
-				}
-			}
 		}(targetToken, targetStatus, targetOrderID)
 		
 		
