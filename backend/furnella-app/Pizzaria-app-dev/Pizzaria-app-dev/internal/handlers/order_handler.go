@@ -105,7 +105,7 @@ func (h Handler) ChangeOrderStatus(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, validationErrors)
 	}
 
-	updatedOrder, err := h.OrderService.UpdateOrderStatus(ctx, orderID, payload.Status)
+	updatedOrder, err := h.OrderService.UpdateOrderStatus(ctx, orderID, payload.Status, h.InfobipClient)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, err)
 	}

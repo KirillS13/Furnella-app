@@ -7,6 +7,8 @@ import (
 	"time"
 	"firebase.google.com/go/v4/messaging"
 	"cloud.google.com/go/firestore"
+	"github.com/infobip-community/infobip-api-go-sdk/v3/pkg/infobip/models"
+	"myapp/internal/requests"
 )
 
 type OrderService struct {
@@ -92,7 +94,7 @@ func (orderService *OrderService) GetOrders(ctx context.Context) (*[]model.Order
 	return &orders, nil
 }
 
-func (orderService *OrderService) UpdateOrderStatus(ctx context.Context, orderId string, status string) (*model.OrderModel, error) {
+func (orderService *OrderService) UpdateOrderStatus(ctx context.Context, orderId string, status string, infobipClient *infobip.Client) (*model.OrderModel, error) {
 	docRef := orderService.Fs.Collection("Orders").Doc(orderId)
 
 	_, err := docRef.Update(ctx, []firestore.Update{
@@ -138,9 +140,9 @@ func (orderService *OrderService) UpdateOrderStatus(ctx context.Context, orderId
 			req := models.SendSMSRequest{
 				Messages: []models.SMSMsg{msg},
 			}
-			_, _, err = h.InfobipClient.SMS.Send(ctx, req)	
+			_, _, err = infobipClient.SMS.Send(ctx, req)	
 			if err != nil {
-				c.Logger().Error("Failed to send SMS notification: ", err)
+				fmt.Errorf("Failed to send SMS notification: %v", err)
 			}
 
 		}(targetToken, targetStatus, targetOrderID)
