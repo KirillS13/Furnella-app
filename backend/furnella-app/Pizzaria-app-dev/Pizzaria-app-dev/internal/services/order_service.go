@@ -119,8 +119,11 @@ func (orderService *OrderService) UpdateOrderStatus(ctx context.Context, orderId
 		return nil, err
 	}
 
-	// Отправка SMS в фоновом режиме (горутина)
-	go func(phone string, currentStatus string) {
+	// Запускаем отправку уведомлений (FCM + SMS) асинхронно
+	go func(order model.OrderModel, currentStatus string) {
+		bgCtx := context.Background()
+
+		// 1. Формируем текста в зависимости от статуса
 		var statusText string
 		switch currentStatus {
 		case "ACCEPTED":
@@ -133,25 +136,63 @@ func (orderService *OrderService) UpdateOrderStatus(ctx context.Context, orderId
 			statusText = "Статус вашего заказа изменился на: " + currentStatus
 		}
 
-		msg := models.SMSMsg{
-			Destinations: []models.SMSDestination{
-				{To: phone},
-			},
-			From: "447491163443",
-			Text: statusText,
+		// 2. Отправка Push через FCM (ищем токен пользователя в Firestore)
+		if order.UserUid != "" && orderService.FcmClient != nil {
+			userDoc, err := orderService.Fs.Collection("Users").Doc(order.UserUid).Get(bgCtx)
+			if err == nil {
+				var userData model.UserModel
+				if err := userDoc.DataTo(&userData); err == nil {
+					token := userData.FcmToken
+					// Валидация токена
+					if token != "" && token != "undefined" && token != "token_permission_denied" {
+						fcmMsg := &messaging.Message{
+							Token: token,
+							Notification: &messaging.Notification{
+								Title: "Furnella 🍕",
+								Body:  statusText,
+							},
+							Data: map[string]string{
+								"orderId": order.OrderId,
+								"status":  currentStatus,
+							},
+						}
+
+						resp, err := orderService.FcmClient.Send(bgCtx, fcmMsg)
+						if err != nil {
+							log.Printf("[FCM ERROR] Ошибка отправки Push: %v", err)
+						} else {
+							fmt.Printf("[FCM SUCCESS] Push успешно отправлен! Response: %s\n", resp)
+						}
+					} else {
+						log.Printf("[FCM INFO] Пропуск FCM: невалидный токен (%s)", token)
+					}
+				}
+			}
 		}
 
-		req := models.SendSMSRequest{
-			Messages: []models.SMSMsg{msg},
+		// 3. Отправка SMS через Infobip
+		if infobipClient != nil && order.PhoneNumber != "" {
+			msg := models.SMSMsg{
+				Destinations: []models.SMSDestination{
+					{To: order.PhoneNumber},
+				},
+				From: "447491163443",
+				Text: statusText,
+			}
+
+			req := models.SendSMSRequest{
+				Messages: []models.SMSMsg{msg},
+			}
+
+			_, _, err := infobipClient.SMS.Send(bgCtx, req)
+			if err != nil {
+				log.Printf("[INFOBIP ERROR] Ошибка отправки SMS: %v", err)
+			} else {
+				fmt.Println("[INFOBIP SUCCESS] SMS успешно отправлена")
+			}
 		}
 
-		_, _, err := infobipClient.SMS.Send(context.Background(), req)
-		if err != nil {
-			log.Printf("[INFOBIP ERROR] Ошибка отправки SMS: %v", err)
-		} else {
-			fmt.Println("[INFOBIP SUCCESS] SMS успешно отправлена")
-		}
-	}(updatedOrder.PhoneNumber, status)
+	}(updatedOrder, status)
 
 	return &updatedOrder, nil
 }
