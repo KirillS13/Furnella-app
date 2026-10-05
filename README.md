@@ -1,4 +1,4 @@
-# 🎟️️ Ticket Booking API
+# 🎟️ Ticket Booking API
 
 ![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=for-the-badge&logo=go&logoColor=white)
 ![Echo Framework](https://img.shields.io/badge/Echo-v4-000000?style=for-the-badge&logo=go&logoColor=white)
@@ -44,40 +44,40 @@ A high-performance, production-grade RESTful API service for event scheduling an
 
 The service follows **Layered Clean Architecture** to isolate HTTP delivery, business domain rules, and data persistence:
 
-               ┌────────────────────────┐
-               │     Client Request     │
-               └───────────┬────────────┘
-                           │
-                           ▼
-               ┌────────────────────────┐
-               │    Handlers (Echo)     │  <-- JSON Binding, HTTP Status Codes, Route Routing
-               └───────────┬────────────┘
-                           │
-                           ▼
-               ┌────────────────────────┐
-               │     Service Layer      │  <-- Core Business Logic & Validations
-               └───────────┬────────────┘
-                           │
-                           ▼
-               ┌────────────────────────┐
-               │    Repository Layer    │  <-- Prepared SQL Statements & pgxpool Queries
-               └───────────┬────────────┘
-                           │
-                           ▼
-               ┌────────────────────────┐
-               │  PostgreSQL Database   │  <-- Persistent Relational Data
-               └────────────────────────┘
+```mermaid
+graph TD
+    Client[Client Request] --> Handlers[Handlers Layer / Echo]
+    Handlers --> Service[Service Layer / Business Logic]
+    Service --> Repository[Repository Layer / SQL Queries]
+    Repository --> DB[(PostgreSQL Database)]
+```
 
 ### Database Entity Relationship Diagram (ERD)
 
-┌──────────────────┐       ┌──────────────────┐       ┌──────────────────┐
-│      users       │       │     tickets      │       │      events      │
-├──────────────────┤       ├──────────────────┤       ├──────────────────┤
-│ id (PK) SERIAL   │◄──────┼ user_id (FK) INT │       │ id (PK) SERIAL   │
-│ username VARCHAR │       │ event_id (FK) INT┼──────►│ title VARCHAR    │
-│ email VARCHAR    │       │ seat_row INT     │       │ start_time TIME  │
-└──────────────────┘       │ seat_column INT  │       │ hall_name VARCHAR│
-                           └──────────────────┘       └──────────────────┘
+```mermaid
+erDiagram
+    USERS ||--o{ TICKETS : "owns"
+    EVENTS ||--o{ TICKETS : "contains"
+
+    USERS {
+        int id PK
+        string username
+        string email
+    }
+    EVENTS {
+        int id PK
+        string title
+        time start_time
+        string hall_name
+    }
+    TICKETS {
+        int id PK
+        int user_id FK
+        int event_id FK
+        int seat_row
+        int seat_column
+    }
+```
 
 ---
 
@@ -117,12 +117,14 @@ The service follows **Layered Clean Architecture** to isolate HTTP delivery, bus
 
 Create a `.env` file in the project root directory:
 
+```env
 SERVER_PORT=8080
 DB_HOST=postgres
 DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=secret
 DB_NAME=ticket_db
+```
 
 ---
 
@@ -130,6 +132,7 @@ DB_NAME=ticket_db
 
 Run the API service and PostgreSQL database simultaneously:
 
+```bash
 # 1. Clone repository
 git clone https://github.com/KirillS13/Barbershop_TgBot.git
 cd Barbershop_TgBot
@@ -139,16 +142,19 @@ docker compose up -d --build
 
 # 3. Check application logs
 docker compose logs -f app
+```
 
 ---
 
 ### Option 2: Native Local Launch
 
+```bash
 # 1. Download Go module dependencies
 go mod download
 
 # 2. Run application
 go run main.go
+```
 
 ---
 
